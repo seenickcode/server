@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Nick Manning
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Demo rig for the bulk-import before/after demo (see docs/demo-plan.md).
+# Fully containerized: `app` runs THIS source checkout (repo root mounted at
+# /var/www/html), so occ and the import spike need no PHP on the host.
+# MariaDB because SQLite bypasses the propagator's FOR UPDATE locking path.
+services:
+  app:
+    build: .
+    image: importdemo-app
+    volumes:
+      - ../..:/var/www/html # this checkout, incl. docs/demo/ (seed data + spike)
+    ports: ["8080:8080"]
+    depends_on: [db, minio]
+
+  db:
+    image: mariadb:11
+    environment:
+      MYSQL_ROOT_PASSWORD: nextcloud
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: nextcloud
+    ports: ["3306:3306"] # exposed for host-side query-log inspection (Act 2)
+    command: --general-log=0 # toggled on during demo Act 2
+
+  minio:
+    image: minio/minio
+    environment:
+      MINIO_ROOT_USER: nextcloud
+      MINIO_ROOT_PASSWORD: nextcloud12345
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000", "9001:9001"] # exposed for mc + console on the host
